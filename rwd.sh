@@ -14,14 +14,12 @@ DEFAULT_ARCHIVE=".rwd_aliases"
 get_rwd_aliases(){
 	RWD_PATH="$1"
 	RWD_ALIASES="$RWD_PATH/$DEFAULT_ARCHIVE"
-	if [ ! -f "$RWD_ALIASES" ]; then
-		touch "$RWD_ALIASES"
-	fi
+	[ -f "$RWD_ALIASES" ] || touch "$RWD_ALIASES"
 }
 
 parse_opts(){
 	ARG_SHIFT=0
-	while getopts :asdelp OPTION
+	while getopts :asdel OPTION
 	do
 		case $OPTION in
 			a)	ALL=True;;
@@ -29,31 +27,36 @@ parse_opts(){
 			d)	DELETE=True;;
 			e)	EXIT=True;;
 			l)	LIST=True;;
-			?)  echo "unknown option: $OPTARG"; exit 1;;
+			?)  echo "Unknown option: $OPTARG"; return 1;;
 		esac
 		ARG_SHIFT=1
 	done
+	if [ "$ARG_SHIFT" = 1 ]; then
+		validate_opts
+	fi
+}
+
+validate_opts(){
+	[ $LIST ] || [ $DELETE ] || [ $EXIT ] && return 0
+	[ ! $ALL ] && return 0
+	MSG="Optional command error. Please specify one: "
+	MSG="${MSG} -l [list], -d [delete], or -e [exit]."
+	echo $MSG; return 1;
 }
 
 parse_args(){
-	parse_opts "$@"
-	shift $((ARG_SHIFT))
-	create_alias "$@"
-	create_dir "$@"
+	parse_opts "$1" &&
+	{ shift $((ARG_SHIFT)); create_alias "$@"; } &&
+	create_dir "$@" ||
+	return 1
 }
 
 create_alias(){
-	if [ $1 ] && [[ "$1" =~ [^a-zA-Z0-9] ]]; then
-		echo "Invalid characters. Please use an alphanumeric string."
-		exit 1
-	elif [ ${#1} -gt $ALIAS_LEN ]; then
-		echo "Please limit bookmarks to $ALIAS_LEN characters."
-		exit 1
-	elif [ ! "$1" ]; then
-		ALIAS="$DEFAULT_ALIAS"
-	else
-		ALIAS="$ALIAS_HEADER$1"
-	fi
+	[ $1 ] && [[ "$1" =~ [^a-zA-Z0-9] ]] &&
+	{ echo "Invalid characters. Must be alphanumeric."; return 1; }
+	[ ${#1} -gt $ALIAS_LEN ] &&
+    { echo "Pleease limit Bookmarks to $ALIAS_LEN characters."; return 1; }
+	[ $1 ] && ALIAS="$ALIAS_HEADER$1" || ALIAS="$DEFAULT_ALIAS" 
 }
 
 create_dir(){
@@ -62,8 +65,8 @@ create_dir(){
 	elif [ "$2" = ".." ]; then
 		DIR=$(dirname $(pwd))
 	elif [ "$2" ] && [ ! -d "$2" ]; then
-		echo "Directory $2 does not exist."
-		exit 1
+		echo "Directory \"$2\" does not exist."
+		return 1
 	else
 		DIR="$2"
 	fi
@@ -71,25 +74,19 @@ create_dir(){
 	
 overwrite_alias(){
 	ALIAS=$1; DIR=$2
-	MSG="Do you want to overwrite existing $ALIAS"
-	if [ "$(grep "$ALIAS" "$RWD_ALIASES")" ]; then
-		ACTION=$(warning "$MSG")
-		if [ ! $ACTION ]; then
-			exit 0
-		else
- 			sed -i "/$ALIAS/d" "$RWD_ALIASES"
-		fi
-	fi
-	if [ "$DIR" ]; then
-		echo -e "$ALIAS\t$DIR" >> "$RWD_ALIASES"
-	fi
+	MSG="Do you want to overwrite bookmark \"$ALIAS\""
+	
+	has_record "$ALIAS" 1>/dev/null && warning "$MSG" &&
+	sed -i "/$ALIAS/d" "$RWD_ALIASES"
+	
+	[ "$DIR" ] && echo -e "$ALIAS\t$DIR" >> "$RWD_ALIASES"
 }
 
 delete_alias(){
 	ALIAS=$1
 	if [ ! -s "$RWD_ALIASES" ]; then
 		echo "Nothing to delete."
-		exit 1
+		return 1
 	fi
 	if [ "$ALL" = True ]; then
 		MSG="Do you want to remove all bookmarks?"
@@ -113,75 +110,63 @@ mark_exit(){
 }
 
 list_alias(){
-	if [ ! -s "$RWD_ALIASES" ]; then
-		echo "Nothing to list."
-		exit 1
-	fi
+	[ ! -s "$RWD_ALIASES" ] && { echo "Nothing to list."; return 1; }
 	if [ "$ALL" = True ]; then
-		echo "$(sed "s@$ALIAS_HEADER@@g" $RWD_ALIASES)" | column -t -s$'\t'
+		cat $RWD_ALIASES | format | column -t -s$'\t'
 	elif [ "$ALIAS" != "$DEFAULT_ALIAS" ]; then
-		echo "$(get_alias "$ALIAS")" | sed "s@$ALIAS_HEADER@@g"
+		echo "$(has_record "$ALIAS")" | format
 	else
-		echo "$(tail -n 1 "$RWD_ALIASES")" | sed "s@$ALIAS_HEADER@@g"
+		echo "$(tail -n 1 "$RWD_ALIASES")" | format
 	fi
 }
 
 warning(){
-	if [ "$SILIENT" = True ]; then
-		echo True
-		return 0
-	fi
-	MSG="$1 (y/n)? ";
-	while [ "$RESPONSE" != "q" ]
+	[ "$SILIENT" ] && { echo True; return 0; }
+	MSG=$(echo "$1 (y/n)? " | format)
+	while :
 	do
 		read -p "$MSG" RESPONSE
 		case $RESPONSE in
-			[yY]) 	echo True; return 0;;
-			[nN])	exit 0;;
-			[qQ]) 	exit 0;;
-			*)		MSG="Please enter y/n or q to quit: ";;
+			[yY]) 	return 0;;
+			[nN])	return 1;;
 		esac
 	done
 }
 
-get_alias(){
+has_record(){
 	ALIAS="$1"
-	RESULT=$(grep "$ALIAS" "$RWD_ALIASES")
-	if [ "$RESULT" ]; then
-		echo "$RESULT"
-		return 0
-	else
-		echo "$ALIAS does not exist."
-		exit 1
-	fi
+	RESULT=$(grep "$ALIAS" "$RWD_ALIASES") && echo "$RESULT" ||
+	{ echo "Bookmark \"$ALIAS\" not found." | format; return 1; }
+}
+
+format(){
+	cat | sed "s@$ALIAS_HEADER@@g"
 }
 
 set_last(){
 	ALIAS="$1"; ALIAS_DIR="$2"
- 	delete_alias "$ALIAS"
+ 	delete_alias "$ALIAS" || return 1
 	echo -e "$ALIAS_DIR" >> "$RWD_ALIASES"
 }
 
 exec_alias(){
-	if [ ! -s "$RWD_ALIASES" ]; then
-		echo "No directory bookmarks found."
-		exit 1
-	fi
-	MSG=$(get_alias "$ALIAS")
+	[ -s "$RWD_ALIASES" ] || { echo "No bookmarks found."; return 1; }
+	
+	MSG=$(has_record "$ALIAS")
 	if [[ $? -ne 0 ]]; then
 		if [ "$ALIAS" != "$DEFAULT_ALIAS" ]; then
 			echo "$MSG"
 			return 1
 		else
 			MSG=$(tail -n 1 "$RWD_ALIASES")
-			SPLIT_MSG=(${MSG// / })
+			SPLIT_MSG=($MSG)
 			ALIAS="${SPLIT_MSG[0]}"
 		fi
 	fi
+
 	set_last "$ALIAS" "$MSG"
-	if [ "$ALIAS" = "$DEFAULT_ALIAS" ]; then
-		delete_alias "$ALIAS"
-	fi
+	[ "$ALIAS" = "$DEFAULT_ALIAS" ] && delete_alias "$ALIAS"
+	# TODO: change to cd ... ; return 0
 	echo ${MSG#"$ALIAS	"}
 	return 2
 }
@@ -189,7 +174,7 @@ exec_alias(){
 setup(){
 	get_rwd_aliases "$RWD_PATH"
 	exec 3<"$RWD_ALIASES"
-	parse_args "$@"
+	parse_args "$@" || return 1
 }
 
 teardown(){
@@ -199,18 +184,17 @@ teardown(){
 src_rwd(){
 	RWD_PATH=$1
 	shift 1
-	setup "$@"
+	setup "$@" || return 1
 
 	if [ "$EXIT" ]; then
 		mark_exit
 	elif [ "$LIST" ]; then
-		list_alias
+		list_alias || return 1
 	elif [ "$DELETE" ]; then
-		delete_alias "$ALIAS"
+		delete_alias "$ALIAS" || return 1
 	elif [ "$DIR" ]; then
 		overwrite_alias "$ALIAS" "$DIR"
 	else
 		exec_alias
 	fi
-	return
 }

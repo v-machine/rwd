@@ -90,5 +90,5 @@ $ rwd -e
 License information
 
 ## To Do
-- Support tab completion manually specifying paths.
+- Support tab completion for both bookmarks and paths.
 - Make character limit modifiable.

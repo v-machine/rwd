@@ -30,7 +30,7 @@ parse_opts(){
 	do
 		case $OPTION in
 			a)	ALL=True;;
-			s)	SILIENT=True;;
+			s)	SILENT=True;;
 			d)	DELETE=True;;
 			e)	EXIT=True;;
 			l)	LIST=True;;
@@ -80,20 +80,20 @@ overwrite_alias(){
 delete_alias(){
 	local ALIAS MSG
 	ALIAS=$1
-	MSG="Do you want to remove all bookmarks?"
+	MSG="Do you want to remove"
 
 	[ ! -s "$RWD_ALIASES" ] && { echo "Nothing to delete."; return 1; }
-	[ "$ALL" ] && [ "$(warning "$MSG")" ] &&
+	[ "$ALL" ] && [ "$(warning "${MSG} all bookmarks")" ] &&
 	{ > $RWD_ALIASES; return 0; }
 	
-	SILIENT=True
-	[ "$ALIAS" = "$DEFAULT_ALIAS" ] &&
+	[ "$(warning "$MSG \"$ALIAS\" bookmark")" ] &&
+	[ "$ALIAS" = "$DEFAULT_ALIAS" ] && 
 	sed -i '$d' "$RWD_ALIASES" ||
 	sed -i "/\b$ALIAS\b/d" "$RWD_ALIASES"
 }
 
 mark_exit(){
-	SILIENT=True
+	SILENT=True
 	overwrite_alias "$ALIAS" "$(pwd)"
 	exit 3
 }
@@ -111,7 +111,7 @@ list_alias(){
 
 warning(){
 	local MSG
-	[ "$SILIENT" ] && return 0;
+	[ "$SILENT" ] && return 0;
 	MSG=$(echo "$1 (y/n)? " | format)
 	while :
 	do
@@ -155,7 +155,7 @@ exec_alias(){
 			ALIAS="${SPLIT_MSG[0]}"
 		fi
 	fi
-
+	SILENT=True
 	set_last "$ALIAS" "$MSG"
 	[ "$ALIAS" = "$DEFAULT_ALIAS" ] && delete_alias "$ALIAS"
 	echo ${MSG#"$ALIAS	"}

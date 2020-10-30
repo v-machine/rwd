@@ -1,3 +1,4 @@
+#!/urs/bin/bash
 # Copyright (c) 2020, Vincent Mai, http://jiawei.vincent.mai@gmail.com
 # All rights reserved.
 
@@ -10,11 +11,17 @@ ALIAS_HEADER="rwd_"
 DEFAULT_ALIAS="$ALIAS_HEADER%tmp"
 DEFAULT_ARCHIVE=".rwd_aliases"
 
-# finds or create an archival file 
 get_rwd_aliases(){
 	RWD_PATH="$1"
 	RWD_ALIASES="$RWD_PATH/$DEFAULT_ARCHIVE"
 	[ -f "$RWD_ALIASES" ] || touch "$RWD_ALIASES"
+}
+
+parse_args(){
+	parse_opts "$1"
+	shift $((ARG_SHIFT))
+	create_alias "$@"
+	create_dir "$@"
 }
 
 parse_opts(){
@@ -27,7 +34,7 @@ parse_opts(){
 			d)	DELETE=True;;
 			e)	EXIT=True;;
 			l)	LIST=True;;
-			?)  echo "Unknown option: $OPTARG"; return 1;;
+			?)  echo "Unknown option: $OPTARG"; exit 1;;
 		esac
 		ARG_SHIFT=1
 	done
@@ -37,42 +44,32 @@ parse_opts(){
 }
 
 validate_opts(){
-	[ $LIST ] || [ $DELETE ] || [ $EXIT ] && return 0
-	[ ! $ALL ] && return 0
-	MSG="Optional command error. Please specify one: "
-	MSG="${MSG} -l [list], -d [delete], or -e [exit]."
-	echo $MSG; return 1;
-}
-
-parse_args(){
-	parse_opts "$1" &&
-	{ shift $((ARG_SHIFT)); create_alias "$@"; } &&
-	create_dir "$@" ||
-	return 1
+	local MSG
+	[ "$LIST" ] || [ "$DELETE" ] || [ "$EXIT" ] && return 0
+	[ ! "$ALL" ] && return 0
+	MSG="Please specify an optional command: "
+	MSG="$MSG -l [list], -d [delete], or -e [exit]."
+	echo $MSG; exit 1;
 }
 
 create_alias(){
 	[ $1 ] && [[ "$1" =~ [^a-zA-Z0-9] ]] &&
-	{ echo "Invalid characters. Must be alphanumeric."; return 1; }
+	{ echo "Invalid characters. Must be alphanumeric."; exit 1; }
 	[ ${#1} -gt $ALIAS_LEN ] &&
-    { echo "Pleease limit Bookmarks to $ALIAS_LEN characters."; return 1; }
+    { echo "Pleease limit Bookmarks to $ALIAS_LEN characters."; exit 1; }
 	[ $1 ] && ALIAS="$ALIAS_HEADER$1" || ALIAS="$DEFAULT_ALIAS" 
 }
 
 create_dir(){
-	if [ "$2" = "." ]; then
-		DIR=$(pwd)
-	elif [ "$2" = ".." ]; then
-		DIR=$(dirname $(pwd))
-	elif [ "$2" ] && [ ! -d "$2" ]; then
-		echo "Directory \"$2\" does not exist."
-		return 1
-	else
-		DIR="$2"
-	fi
+	[ "$2" = "." ] && { DIR=$(pwd); return 0; } ||
+	[ "$2" = ".." ] && { DIR=$(dirname $(pwd)); return 0; }
+	[ "$2" ] && [ ! -d "$2" ] &&
+	{ echo "Directory \"$2\" does not exist."; exit 1; }
+	DIR="$2"
 }
-	
+
 overwrite_alias(){
+	local ALIAS DIR MSG
 	ALIAS=$1; DIR=$2
 	MSG="Do you want to overwrite bookmark \"$ALIAS\""
 	
@@ -83,24 +80,18 @@ overwrite_alias(){
 }
 
 delete_alias(){
+	local ALIAS MSG
 	ALIAS=$1
-	if [ ! -s "$RWD_ALIASES" ]; then
-		echo "Nothing to delete."
-		return 1
-	fi
-	if [ "$ALL" = True ]; then
-		MSG="Do you want to remove all bookmarks?"
-		if [ "$(warning "$MSG")" = True ]; then
-			> $RWD_ALIASES
-		fi
-	else
-		SILIENT=True
-		if [ "$ALIAS" != "$DEFAULT_ALIAS" ]; then
-			sed -i "/$ALIAS/d" "$RWD_ALIASES"
-		else
-			sed -i '$d' "$RWD_ALIASES"
-		fi
-	fi
+	MSG="Do you want to remove all bookmarks?"
+
+	[ ! -s "$RWD_ALIASES" ] && { echo "Nothing to delete."; return 1; }
+	[ "$ALL" ] && [ "$(warning "$MSG")" ] &&
+	{ > $RWD_ALIASES; return 0; }
+	
+	SILIENT=True
+	[ "$ALIAS" = "$DEFAULT_ALIAS" ] &&
+	sed -i '$d' "$RWD_ALIASES" ||
+	sed -i "/$ALIAS/d" "$RWD_ALIASES"
 }
 
 mark_exit(){
@@ -121,7 +112,8 @@ list_alias(){
 }
 
 warning(){
-	[ "$SILIENT" ] && { echo True; return 0; }
+	local MSG
+	[ "$SILIENT" ] && return 0;
 	MSG=$(echo "$1 (y/n)? " | format)
 	while :
 	do
@@ -134,6 +126,7 @@ warning(){
 }
 
 has_record(){
+	local ALIAS RESULT
 	ALIAS="$1"
 	RESULT=$(grep "$ALIAS" "$RWD_ALIASES") && echo "$RESULT" ||
 	{ echo "Bookmark \"$ALIAS\" not found." | format; return 1; }
@@ -144,8 +137,9 @@ format(){
 }
 
 set_last(){
+	local ALIAS ALIAS_DIR
 	ALIAS="$1"; ALIAS_DIR="$2"
- 	delete_alias "$ALIAS" || return 1
+ 	delete_alias "$ALIAS"
 	echo -e "$ALIAS_DIR" >> "$RWD_ALIASES"
 }
 
@@ -166,7 +160,6 @@ exec_alias(){
 
 	set_last "$ALIAS" "$MSG"
 	[ "$ALIAS" = "$DEFAULT_ALIAS" ] && delete_alias "$ALIAS"
-	# TODO: change to cd ... ; return 0
 	echo ${MSG#"$ALIAS	"}
 	return 2
 }
@@ -174,7 +167,7 @@ exec_alias(){
 setup(){
 	get_rwd_aliases "$RWD_PATH"
 	exec 3<"$RWD_ALIASES"
-	parse_args "$@" || return 1
+	parse_args "$@"
 }
 
 teardown(){
@@ -184,14 +177,14 @@ teardown(){
 src_rwd(){
 	RWD_PATH=$1
 	shift 1
-	setup "$@" || return 1
-
+	setup "$@"
+	
 	if [ "$EXIT" ]; then
 		mark_exit
 	elif [ "$LIST" ]; then
-		list_alias || return 1
+		list_alias
 	elif [ "$DELETE" ]; then
-		delete_alias "$ALIAS" || return 1
+		delete_alias "$ALIAS"
 	elif [ "$DIR" ]; then
 		overwrite_alias "$ALIAS" "$DIR"
 	else

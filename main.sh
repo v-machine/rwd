@@ -1,3 +1,4 @@
+#!/usr/bin/bash
 # Copyright (c) 2020, Vincent Mai, http://jiawei.vincent.mai@gmail.com
 # All rights reserved.
 
@@ -16,18 +17,18 @@ get_source(){
 }
 
 clean_up(){
-	unset RWD_PATH RWD_SOURCE MSG
+	unset RWD_PATH RWD_SOURCE RESULT
 }
 
 call_rwd(){
 	RWD_PATH=$1
 	shift 1
 	get_source "$RWD_PATH"
-	MSG=$(src_rwd "$RWD_PATH" "$@")
+	RESULT=$(src_rwd "$RWD_PATH" "$@")
 	case $? in
-		0)	if [ "$MSG" ]; then echo "$MSG"; return 0; fi;;
-		1)	echo "$MSG"; return 1;;
-		2)	cd "$MSG";;
+		0)	if [ "$RESULT" ]; then echo "$RESULT"; return 0; fi;;
+		1)	echo "$RESULT"; return 1;;
+		2)	cd "$RESULT";;
 		3)	exit 0
 	esac
 	clean_up "$@"

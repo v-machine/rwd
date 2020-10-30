@@ -38,9 +38,7 @@ parse_opts(){
 		esac
 		ARG_SHIFT=1
 	done
-	if [ "$ARG_SHIFT" = 1 ]; then
-		validate_opts
-	fi
+	[ "$ARG_SHIFT" = 1 ] && validate_opts
 }
 
 validate_opts(){
@@ -74,7 +72,7 @@ overwrite_alias(){
 	MSG="Do you want to overwrite bookmark \"$ALIAS\""
 	
 	has_record "$ALIAS" 1>/dev/null && warning "$MSG" &&
-	sed -i "/$ALIAS/d" "$RWD_ALIASES"
+	sed -i "/\b$ALIAS\b/d" "$RWD_ALIASES"
 	
 	[ "$DIR" ] && echo -e "$ALIAS\t$DIR" >> "$RWD_ALIASES"
 }
@@ -91,7 +89,7 @@ delete_alias(){
 	SILIENT=True
 	[ "$ALIAS" = "$DEFAULT_ALIAS" ] &&
 	sed -i '$d' "$RWD_ALIASES" ||
-	sed -i "/$ALIAS/d" "$RWD_ALIASES"
+	sed -i "/\b$ALIAS\b/d" "$RWD_ALIASES"
 }
 
 mark_exit(){
@@ -128,7 +126,7 @@ warning(){
 has_record(){
 	local ALIAS RESULT
 	ALIAS="$1"
-	RESULT=$(grep "$ALIAS" "$RWD_ALIASES") && echo "$RESULT" ||
+	RESULT=$(grep -w "$ALIAS" "$RWD_ALIASES") && echo "$RESULT" ||
 	{ echo "Bookmark \"$ALIAS\" not found." | format; return 1; }
 }
 

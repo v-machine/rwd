@@ -23,15 +23,15 @@ Info coming soon
 
 ## Usage
 ```
-$ rwd [OPTION...] {<BOOKMARK>|<BOOKMARK> <PATH>}
+$ rwd [OPTION...] { <BOOKMARK> | <BOOKMARK> <PATH> }
 ```
 ## Options
 ```
--l			List bookmark(s) and its linked path
--d          Deletes bookmark(s)
--e          Terminate shell and pick up from where you left off
--a          Apply to all bookmarks
--s          Slience all warning messages
+-l	List bookmark(s) and its linked path
+-d	Deletes bookmark(s)
+-e	Terminate shell and pick up from where you left off
+-a	Apply to all bookmarks
+-s	Slience all warning messages
 ```
 
 ## Examples
@@ -72,7 +72,7 @@ $ rwd -la
 ### Delete Bookmarks
 ```
 $ rwd -d
-	# delete the last used/modified bookmark and path
+	# delete (without warning) the last used/modified bookmark and path
 $ rwd -d dir1
 	# delete the bookmark "prj2" and path
 $ rwd -das

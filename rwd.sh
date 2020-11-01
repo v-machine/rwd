@@ -1,4 +1,4 @@
-#!/urs/bin/bash
+#!/usr/bin/bash
 # Copyright (c) 2020, Vincent Mai, http://jiawei.vincent.mai@gmail.com
 # All rights reserved.
 
@@ -6,51 +6,27 @@
 # Author: Vincent Mai
 # Version: 0.1.0
 
-ALIAS_LEN=4
-ALIAS_HEADER="rwd_"
-DEFAULT_ALIAS="$ALIAS_HEADER%tmp"
-DEFAULT_ARCHIVE=".rwd_aliases"
-
 # find .rwd_aliases or create one
 get_rwd_aliases(){
-	RWD_PATH="$1"
-	RWD_ALIASES="$RWD_PATH/$DEFAULT_ARCHIVE"
-	[ -f "$RWD_ALIASES" ] || touch "$RWD_ALIASES"
-}
-
-# parses command arguments
-parse_args(){
-	parse_opts "$1"
-	shift $((ARG_SHIFT))
-	init_alias "$@"
-	init_dir "$@"
+	RWD_ARCHIVE="$RWD_PATH/$DEFAULT_ARCHIVE"
+	[ -f "RWD_ARCHIVE" ] || touch "$RWD_ARCHIVE"
 }
 
 # parses optional commands
 parse_opts(){
-	ARG_SHIFT=0
-	while getopts :asdel OPTION
+	ARG_SHIFT=0; OPTIND=1  # need to reset OPTIND
+	while getopts ":asdel" OPTION
 	do
-		case $OPTION in
-			a)	ALL=True;;
-			s)	SILENT=True;;
-			d)	DELETE=True;;
-			e)	EXIT=True;;
-			l)	LIST=True;;
-			?)  echo "Unknown option: $OPTARG"; exit 1;;
+		case ${OPTION} in
+			a) ALL=true;;
+			s) SILENT=true;;
+			d) DELETE=true;;
+			e) EXIT=true;;
+			l) LIST=true;;
+			?) echo "Unknown option: $OPTARG"; exit 1;;
 		esac
 		ARG_SHIFT=1
 	done
-	[ "$ARG_SHIFT" = 1 ] && validate_opts
-}
-
-# validates optional commands
-validate_opts(){
-	local MSG
-	[ "$LIST" ] || [ "$DELETE" ] || [ "$EXIT" ] && return 0
-	MSG="Please specify an optional command: "
-	MSG="$MSG -l [list], -d [delete], or -e [exit]."
-	echo $MSG; exit 1;
 }
 
 # validates user input and initialize an alias (with a header)
@@ -59,16 +35,23 @@ init_alias(){
 	{ echo "Invalid characters. Must be alphanumeric."; exit 1; }
 	[ ${#1} -gt $ALIAS_LEN ] &&
     { echo "Pleease limit Bookmarks to $ALIAS_LEN characters."; exit 1; }
-	[ $1 ] && ALIAS="$ALIAS_HEADER$1" || ALIAS="$DEFAULT_ALIAS" 
+	[ $1 ] && ALIAS="$ALIAS_HEADER$1" || ALIAS="$DEFAULT_ALIAS"	
 }
 
 # parses and validate user input to initialize a directory
 init_dir(){
 	DIR="$2"
 	DIR=${DIR/../$(dirname $(pwd))} 
-	DIR=${DIR/./$(pwd)} 
+	DIR=${DIR/./$(pwd)}
 	[ "$2" ] && [ ! -d "$DIR" ] &&
 	{ echo "Directory \"$DIR\" does not exist."; exit 1; }
+}
+
+parse_args(){
+	parse_opts $@;
+	shift $(($ARG_SHIFT))
+	init_alias $@
+	init_dir $@
 }
 
 # displays warnings and overwrites an alias
@@ -78,9 +61,9 @@ overwrite_alias(){
 	MSG="Do you want to overwrite bookmark \"$ALIAS\""
 	
 	(has_record "$ALIAS" 1>/dev/null) && (warning "$MSG") &&
-	sed -i "/\b$ALIAS\b/d" "$RWD_ALIASES"
+	sed -i "/\b$ALIAS\b/d" "$RWD_ARCHIVE"
 	
-	[ "$DIR" ] && echo -e "$ALIAS\t$DIR" >> "$RWD_ALIASES"
+	[ "$DIR" ] && echo -e "$ALIAS\t$DIR" >> "$RWD_ARCHIVE"
 }
 
 # displays warnings and deletes alias(es)
@@ -89,39 +72,40 @@ delete_alias(){
 	ALIAS=$1
 	MSG="Do you want to remove"
 
-	[ ! -s "$RWD_ALIASES" ] && { echo "Nothing to delete."; return 1; }
+	[ ! -s "$RWD_ARCHIVE" ] && { echo "Nothing to delete."; return 1; }
 	[ "$ALL" ] && $(warning "${MSG} all bookmarks") &&
-	{ > $RWD_ALIASES; return 0; }
+	{ > $RWD_ARCHIVE; return 0; }
 
 	[ "$ALIAS" != "$DEFAULT_ALIAS" ] && 
 	$(warning "$MSG \"$ALIAS\" bookmark") &&
-	sed -i "/\b$ALIAS\b/d" "$RWD_ALIASES" ||
-	sed -i '$d' "$RWD_ALIASES"
+	sed -i "/\b$ALIAS\b/d" "$RWD_ARCHIVE" ||
+	sed -i '$d' "$RWD_ARCHIVE"
 }
 
 # temporarily save pwd and exit
 mark_exit(){
 	SILENT=True
 	overwrite_alias "$ALIAS" "$(pwd)"
-	exit 3
+	echo "exit 0"
+	exit 121
 }
 
 # list one or all stored aliases
 list_alias(){
-	[ ! -s "$RWD_ALIASES" ] && { echo "Nothing to list."; return 1; }
-	if [ "$ALL" = True ]; then
-		cat $RWD_ALIASES | format | column -t -s$'\t'
+	[ ! -s "$RWD_ARCHIVE" ] && { echo "Nothing to list."; exit 1; }
+	if [ $ALL ]; then
+		cat $RWD_ARCHIVE | format | column -t -s$'\t'
 	elif [ "$ALIAS" != "$DEFAULT_ALIAS" ]; then
 		echo "$(has_record "$ALIAS")" | format
 	else
-		echo "$(tail -n 1 "$RWD_ALIASES")" | format
+		echo "$(tail -n 1 "$RWD_ARCHIVE")" | format
 	fi
 }
 
 # displays a warning message and request user input
 warning(){
 	local MSG
-	[ "$SILENT" ] && return 0;
+	[ $SILENT ] && return 0;
 	MSG=$(echo "$1 (y/n)? " | format)
 	while :
 	do
@@ -137,8 +121,8 @@ warning(){
 has_record(){
 	local ALIAS RESULT
 	ALIAS="$1"
-	RESULT=$(grep -w "$ALIAS" "$RWD_ALIASES") && echo "$RESULT" ||
-	{ echo "Bookmark \"$ALIAS\" not found." | format; return 1; }
+	RESULT=$(grep -w "$ALIAS" "$RWD_ARCHIVE") && echo "$RESULT" ||
+	{ echo Bookmark \"$ALIAS\" not found. | format; return 1; }
 }
 
 # format internal repr of alias to be printable
@@ -151,12 +135,12 @@ set_last(){
 	local ALIAS ALIAS_DIR
 	ALIAS="$1"; ALIAS_DIR="$2"
  	delete_alias "$ALIAS"
-	echo -e "$ALIAS_DIR" >> "$RWD_ALIASES"
+	echo -e "$ALIAS_DIR" >> "$RWD_ARCHIVE"
 }
 
 # execute default command (create new alias or change directory)
 exec_alias(){
-	[ -s "$RWD_ALIASES" ] || { echo "No bookmarks found."; return 1; }
+	[ -s "$RWD_ARCHIVE" ] || { echo No bookmarks found.; return 1; }
 	
 	MSG=$(has_record "$ALIAS")
 	if [[ $? -ne 0 ]]; then
@@ -164,7 +148,7 @@ exec_alias(){
 			echo "$MSG"
 			return 1
 		else
-			MSG=$(tail -n 1 "$RWD_ALIASES")
+			MSG=$(tail -n 1 "$RWD_ARCHIVE")
 			SPLIT_MSG=($MSG)
 			ALIAS="${SPLIT_MSG[0]}"
 		fi
@@ -172,13 +156,13 @@ exec_alias(){
 	SILENT=True
 	set_last "$ALIAS" "$MSG"
 	[ "$ALIAS" = "$DEFAULT_ALIAS" ] && delete_alias "$ALIAS"
-	echo ${MSG#"$ALIAS	"}
-	return 2
+	echo cd \"${MSG#"$ALIAS	"}\"
+	exit 121
 }
 
 setup(){
 	get_rwd_aliases "$RWD_PATH"
-	exec 3<"$RWD_ALIASES" # assigns to File Descriptor 3
+	exec 3<"$RWD_ARCHIVE" # assigns to File Descriptor 3
 	parse_args "$@"
 }
 
@@ -186,11 +170,15 @@ teardown(){
 	exec 3<&-
 }
 
-src_rwd(){
-	RWD_PATH=$1
-	shift 1
+# rwd main program
+main(){
+	EXPORT=true
+	ALIAS_LEN=4
+	ALIAS_HEADER="rwd_"
+	DEFAULT_ALIAS="$ALIAS_HEADER%tmp"
+	DEFAULT_ARCHIVE=".rwd_aliases"
+	RWD_PATH=$1; shift 1
 	setup "$@"
-	
 	if [ "$EXIT" ]; then
 		mark_exit
 	elif [ "$LIST" ]; then
@@ -202,4 +190,23 @@ src_rwd(){
 	else
 		exec_alias
 	fi
+	teardown
 }
+
+clean_up(){
+	GLOBAL_ARGS=(EXPORT RETURN)
+	for ARG in ${GLOBAL_ARGS[@]}
+	do
+		unset -v $ARG
+	done
+}
+
+# forward commands from subshell to current shell
+run(){
+	RETURN=$(main $@)
+	[ "$?" -eq 121 ] && EXPORT=true
+	[ "$EXPORT" = "true" ] && eval "$RETURN" || echo "$RETURN"
+	clean_up
+}
+
+run $@

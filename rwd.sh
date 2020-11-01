@@ -11,19 +11,22 @@ ALIAS_HEADER="rwd_"
 DEFAULT_ALIAS="$ALIAS_HEADER%tmp"
 DEFAULT_ARCHIVE=".rwd_aliases"
 
+# find .rwd_aliases or create one
 get_rwd_aliases(){
 	RWD_PATH="$1"
 	RWD_ALIASES="$RWD_PATH/$DEFAULT_ARCHIVE"
 	[ -f "$RWD_ALIASES" ] || touch "$RWD_ALIASES"
 }
 
+# parses command arguments
 parse_args(){
 	parse_opts "$1"
 	shift $((ARG_SHIFT))
-	create_alias "$@"
-	create_dir "$@"
+	init_alias "$@"
+	init_dir "$@"
 }
 
+# parses optional commands
 parse_opts(){
 	ARG_SHIFT=0
 	while getopts :asdel OPTION
@@ -41,16 +44,17 @@ parse_opts(){
 	[ "$ARG_SHIFT" = 1 ] && validate_opts
 }
 
+# validates optional commands
 validate_opts(){
 	local MSG
 	[ "$LIST" ] || [ "$DELETE" ] || [ "$EXIT" ] && return 0
-	[ ! "$ALL" ] && return 0
 	MSG="Please specify an optional command: "
 	MSG="$MSG -l [list], -d [delete], or -e [exit]."
 	echo $MSG; exit 1;
 }
 
-create_alias(){
+# validates user input and initialize an alias (with a header)
+init_alias(){
 	[ $1 ] && [[ "$1" =~ [^a-zA-Z0-9] ]] &&
 	{ echo "Invalid characters. Must be alphanumeric."; exit 1; }
 	[ ${#1} -gt $ALIAS_LEN ] &&
@@ -58,46 +62,51 @@ create_alias(){
 	[ $1 ] && ALIAS="$ALIAS_HEADER$1" || ALIAS="$DEFAULT_ALIAS" 
 }
 
-create_dir(){
-	[ "$2" = "." ] && { DIR=$(pwd); return 0; } ||
-	[ "$2" = ".." ] && { DIR=$(dirname $(pwd)); return 0; }
-	[ "$2" ] && [ ! -d "$2" ] &&
-	{ echo "Directory \"$2\" does not exist."; exit 1; }
+# parses and validate user input to initialize a directory
+init_dir(){
 	DIR="$2"
+	DIR=${DIR/../$(dirname $(pwd))} 
+	DIR=${DIR/./$(pwd)} 
+	[ "$2" ] && [ ! -d "$DIR" ] &&
+	{ echo "Directory \"$DIR\" does not exist."; exit 1; }
 }
 
+# displays warnings and overwrites an alias
 overwrite_alias(){
 	local ALIAS DIR MSG
 	ALIAS=$1; DIR=$2
 	MSG="Do you want to overwrite bookmark \"$ALIAS\""
 	
-	has_record "$ALIAS" 1>/dev/null && warning "$MSG" &&
+	(has_record "$ALIAS" 1>/dev/null) && (warning "$MSG") &&
 	sed -i "/\b$ALIAS\b/d" "$RWD_ALIASES"
 	
 	[ "$DIR" ] && echo -e "$ALIAS\t$DIR" >> "$RWD_ALIASES"
 }
 
+# displays warnings and deletes alias(es)
 delete_alias(){
 	local ALIAS MSG
 	ALIAS=$1
 	MSG="Do you want to remove"
 
 	[ ! -s "$RWD_ALIASES" ] && { echo "Nothing to delete."; return 1; }
-	[ "$ALL" ] && [ "$(warning "${MSG} all bookmarks")" ] &&
+	[ "$ALL" ] && $(warning "${MSG} all bookmarks") &&
 	{ > $RWD_ALIASES; return 0; }
-	
-	[ "$(warning "$MSG \"$ALIAS\" bookmark")" ] &&
-	[ "$ALIAS" = "$DEFAULT_ALIAS" ] && 
-	sed -i '$d' "$RWD_ALIASES" ||
-	sed -i "/\b$ALIAS\b/d" "$RWD_ALIASES"
+
+	[ "$ALIAS" != "$DEFAULT_ALIAS" ] && 
+	$(warning "$MSG \"$ALIAS\" bookmark") &&
+	sed -i "/\b$ALIAS\b/d" "$RWD_ALIASES" ||
+	sed -i '$d' "$RWD_ALIASES"
 }
 
+# temporarily save pwd and exit
 mark_exit(){
 	SILENT=True
 	overwrite_alias "$ALIAS" "$(pwd)"
 	exit 3
 }
 
+# list one or all stored aliases
 list_alias(){
 	[ ! -s "$RWD_ALIASES" ] && { echo "Nothing to list."; return 1; }
 	if [ "$ALL" = True ]; then
@@ -109,6 +118,7 @@ list_alias(){
 	fi
 }
 
+# displays a warning message and request user input
 warning(){
 	local MSG
 	[ "$SILENT" ] && return 0;
@@ -123,6 +133,7 @@ warning(){
 	done
 }
 
+# echos the found alias_dir record or return an error
 has_record(){
 	local ALIAS RESULT
 	ALIAS="$1"
@@ -130,10 +141,12 @@ has_record(){
 	{ echo "Bookmark \"$ALIAS\" not found." | format; return 1; }
 }
 
+# format internal repr of alias to be printable
 format(){
 	cat | sed "s@$ALIAS_HEADER@@g"
 }
 
+# move the given alias to last in the stored record
 set_last(){
 	local ALIAS ALIAS_DIR
 	ALIAS="$1"; ALIAS_DIR="$2"
@@ -141,6 +154,7 @@ set_last(){
 	echo -e "$ALIAS_DIR" >> "$RWD_ALIASES"
 }
 
+# execute default command (create new alias or change directory)
 exec_alias(){
 	[ -s "$RWD_ALIASES" ] || { echo "No bookmarks found."; return 1; }
 	
@@ -164,7 +178,7 @@ exec_alias(){
 
 setup(){
 	get_rwd_aliases "$RWD_PATH"
-	exec 3<"$RWD_ALIASES"
+	exec 3<"$RWD_ALIASES" # assigns to File Descriptor 3
 	parse_args "$@"
 }
 

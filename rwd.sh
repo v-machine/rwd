@@ -1,10 +1,9 @@
 #!/usr/bin/bash
-# Copyright (c) 2020, Vincent Mai, http://jiawei.vincent.mai@gmail.com
-# All rights reserved.
+# Copyright (c) 2020 Vincent Mai
+# Email: jiawei.vincent.mai@gmail.com
 
-# rwd source functions
-# Author: Vincent Mai
-# Version: 0.1.0
+# rwd [recent working directory]
+# Version: 0.5.0
 
 # find .rwd_aliases or create one
 get_rwd_aliases(){
@@ -41,8 +40,8 @@ init_alias(){
 # parses and validate user input to initialize a directory
 init_dir(){
 	DIR="$2"
-	DIR=${DIR/../$(dirname $(pwd))} 
-	DIR=${DIR/./$(pwd)}
+	DIR=${DIR/../$(dirname $PWD)} 
+	DIR=${DIR/./$PWD}
 	[ "$2" ] && [ ! -d "$DIR" ] &&
 	{ echo "Directory \"$DIR\" does not exist."; exit 1; }
 }
@@ -85,7 +84,7 @@ delete_alias(){
 # temporarily save pwd and exit
 mark_exit(){
 	SILENT=True
-	overwrite_alias "$ALIAS" "$(pwd)"
+	overwrite_alias "$ALIAS" "$PWD"
 	echo "exit 0"
 	exit 121
 }
@@ -177,7 +176,7 @@ main(){
 	ALIAS_HEADER="rwd_"
 	DEFAULT_ALIAS="$ALIAS_HEADER%tmp"
 	DEFAULT_ARCHIVE=".rwd_aliases"
-	RWD_PATH=$1; shift 1
+	RWD_PATH="$PWD"
 	setup "$@"
 	if [ "$EXIT" ]; then
 		mark_exit
@@ -202,11 +201,14 @@ clean_up(){
 }
 
 # forward commands from subshell to current shell
-run(){
+rwd(){
 	RETURN=$(main $@)
 	[ "$?" -eq 121 ] && EXPORT=true
 	[ "$EXPORT" = "true" ] && eval "$RETURN" || echo "$RETURN"
 	clean_up
 }
 
-run $@
+# opens file windows file explorer from pwd
+goto(){
+	explorer.exe .
+}

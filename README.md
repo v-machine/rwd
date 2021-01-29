@@ -23,7 +23,7 @@ $ sh install.sh
 ```
 
 ## Import Bookmark
-Copy file containing old bookmarks (must be named ".rwd_aliases") into the source folder
+Move prior ".rwd_aliases" into the source folder.
 
 ## Usage
 ```

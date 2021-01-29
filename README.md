@@ -18,7 +18,7 @@ A simple command line untility for bash users to quickly bookmark and navigate t
 
 ## Install
 ```
-$ gitclone https://github.com/v-machine/rwd.git
+$ git clone https://github.com/v-machine/rwd.git
 $ sh install.sh
 ```
 

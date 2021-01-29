@@ -176,7 +176,7 @@ main(){
 	ALIAS_HEADER="rwd_"
 	DEFAULT_ALIAS="$ALIAS_HEADER%tmp"
 	DEFAULT_ARCHIVE=".rwd_aliases"
-	RWD_PATH="$PWD"
+	RWD_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 	setup "$@"
 	if [ "$EXIT" ]; then
 		mark_exit

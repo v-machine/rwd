@@ -7,9 +7,9 @@
 
 BASHRC=$(eval echo "~/.bashrc")
 CONFIG="\n# rwd for directory bookmarking\
-	    \n. "$PWD/rwd.sh"\
-		\n# launch last opened rwd path\
-		\nrwd"
+	\n. "$PWD/rwd.sh"\
+	\n# launch last opened rwd path\
+	\nrwd"
 
 install() {
 	while [ ! -f "$BASHRC" ]; do

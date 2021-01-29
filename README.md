@@ -22,6 +22,9 @@ $ git clone https://github.com/v-machine/rwd.git
 $ sh install.sh
 ```
 
+## Import Bookmark
+Copy file containing old bookmarks (must be named ".rwd_aliases") into the source folder
+
 ## Usage
 ```
 $ rwd [OPTION...] { <BOOKMARK> | <BOOKMARK> <PATH> }

@@ -18,7 +18,8 @@ A simple command line untility for bash users to quickly bookmark and navigate t
 
 ## Install
 ```
-Info coming soon
+$ gitclone https://github.com/v-machine/rwd.git
+$ sh install.sh
 ```
 
 ## Usage
@@ -87,8 +88,11 @@ $ rwd -e
 ```
 
 ## License
-License information
+Copyright (c) 2020 Vincent Mai
+
+This program can be redistributed freely and/or modified under the terms of the GNU General Public License as published by the Free Software Foundation (version 3 or newer).
 
 ## To Do
-- Support tab completion for both bookmarks and paths.
+- Support tab completion for existing bookmarks
 - Make character limit modifiable.
+- Support copy/move/remove with rwd bookmarks

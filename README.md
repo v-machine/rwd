@@ -23,7 +23,7 @@ $ sh install.sh
 ```
 
 ## Import Bookmark
-Copy file containing old bookmarks (must be named ".rwd_aliases") into the source folder
+Move prior ".rwd_aliases" into the source folder.
 
 ## Usage
 ```
@@ -87,7 +87,7 @@ $ rwd -das
 ```
 $ rwd -e
 	# bookmark current directory and terminate shell
-	# be in the current directory when relaunching shell
+	# start at current directory when relaunching shell
 ```
 
 ## License

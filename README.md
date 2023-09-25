@@ -96,6 +96,7 @@ Copyright (c) 2020 Vincent Mai
 This program can be redistributed freely and/or modified under the terms of the GNU General Public License as published by the Free Software Foundation (version 3 or newer).
 
 ## To Do
+- Support zsh in additon to bash
 - Support tab completion for existing bookmarks
 - Make character limit modifiable.
 - Support copy/move/remove with rwd bookmarks
